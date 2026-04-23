@@ -1,0 +1,29 @@
+# Never commit credentials
+.env
+*.env.local
+*.env.production
+*-service-account.json
+*-credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Data files (may contain client data)
+ad-data/
+data/
+exports/
+*.csv
+*.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
