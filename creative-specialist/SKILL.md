@@ -431,7 +431,8 @@ Don't write three different campaigns. Write ONE message and translate the forma
 | Meta (image, single ad) | `python3 build_meta_campaign_full.py ...` |
 | Meta — add another creative variant to existing ad set | Same script + `--reuse-adset <ADSET_ID>` (skips campaign/adset creation, posts only the new ad). Use to test 3 images on one hook. |
 | Google Search (RSA, text-only) | `python3 build_google_search_campaign.py ...` |
-| Google Performance Max (5+ images, 1+ logo, 5+ headlines × descriptions, ideally videos) | `python3 build_google_pmax_campaign.py ...` — videos must be on YouTube first (Google Ads doesn't accept raw uploads) |
+| Google Performance Max | `python3 build_google_pmax_campaign.py ...` — needs 5+ images, 1+ logo, 5+ headlines × descriptions, **and YouTube video IDs** (use `youtube_upload.py` to upload first) |
+| Upload a generated video to YouTube (for PMax) | `python3 youtube_upload.py setup` (one-time OAuth) → `python3 youtube_upload.py upload --file /tmp/x.mp4 --title "..."` returns video ID |
 | TikTok in-feed video | `python3 build_tiktok_campaign.py ...` |
 
 ### Activate after the user approves
@@ -446,7 +447,9 @@ The activation helper always shows you what it's about to enable and asks for `y
 ### Diagnose / report
 | What you need | How |
 |---|---|
-| Audit existing Meta creatives | `python3 analyze_account_creatives.py --account act_X --output ...` |
+| Audit Meta creatives | `python3 analyze_account_creatives.py --account act_X --output /tmp/<client>-meta-audit.md` |
+| Audit Google creatives (Search RSAs + PMax asset groups + top keywords) | `python3 analyze_google_account_creatives.py --customer X --output /tmp/<client>-google-audit.md` |
+| Audit TikTok creatives (ad copy + video metrics: hook rate, completion %) | `python3 analyze_tiktok_account_creatives.py --advertiser-id X --output /tmp/<client>-tiktok-audit.md` |
 | Discover client context (Pages, Pixels, IG, currently-running ads, website signals) | `python3 discover_client_brief.py --account act_X --slug <slug>` |
 | Pull live Meta performance | `python3 meta_ads_data.py campaigns --account act_X --preset last_7d` |
 | Pull live Google performance | `python3 google_ads_data.py campaigns --customer X --range LAST_7_DAYS` |

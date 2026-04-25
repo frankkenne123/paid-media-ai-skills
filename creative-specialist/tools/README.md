@@ -11,8 +11,11 @@ Runnable scripts that pair with `../SKILL.md`. Together they let an AI agent bui
 | `build_google_pmax_campaign.py` | **Google Ads — Performance Max:** asset-group builder — uploads 5+ images, 1+ logos, headlines/descriptions, links YouTube videos. PMax is asset-driven, no manual targeting. |
 | `build_tiktok_campaign.py` | **TikTok:** in-feed video ad builder — upload video → campaign → ad group → ad. Uses `PLACEMENT_TYPE_AUTOMATIC` (TikTok's Advantage+ equivalent). |
 | `activate_paused_resources.py` | **All platforms:** activate PAUSED resources after the user approves. Cascades campaign → ad sets/groups → ads. Confirmation prompt by default; `--yes` to skip; `--dry-run` to preview. Meta supports `--ad-id` for activating a single variant. |
+| `youtube_upload.py` | Two subcommands. `setup` runs OAuth and saves a YouTube refresh token to `.env`. `upload --file <path> --title "..."` uploads a local video to YouTube as **unlisted** by default, returns the video ID — for use with `build_google_pmax_campaign.py --videos`. |
 | `discover_client_brief.py` | Pulls everything Meta knows about a client (Pages, Pixels, IG, currently-running ad copy) + scrapes their homepage for brand voice signals. Outputs `client-briefs/<slug>.md`. |
-| `analyze_account_creatives.py` | Pulls every active Meta ad with copy + creative URL + 30-day performance into a markdown worksheet for framework analysis. |
+| `analyze_account_creatives.py` | **Meta:** pulls every active ad with copy + creative URL + 30-day performance into a markdown worksheet for framework analysis. |
+| `analyze_google_account_creatives.py` | **Google Ads:** pulls Search RSAs (headlines × descriptions × performance), PMax asset groups (with asset coverage breakdown), and top 30 keywords by spend. |
+| `analyze_tiktok_account_creatives.py` | **TikTok:** pulls every ad with copy + video ID + landing URL + window metrics including video-specific signals (2s hook rate, 100% completion rate, CPA). |
 | `META_CAMPAIGN_PLAYBOOK.md` | The 5-step recipe an agent follows to build a Meta campaign. |
 | `client-briefs/_TEMPLATE.md` | Per-client brief template — populated by discovery, refined over time. |
 | `accounts.example.json` | Example config for batch discovery: `{"act_XXXXXXXX": "slug"}`. Copy to `accounts.json` and fill in. |
@@ -37,6 +40,10 @@ GOOGLE_ADS_CLIENT_ID=...
 GOOGLE_ADS_CLIENT_SECRET=...
 GOOGLE_ADS_REFRESH_TOKEN=...
 GOOGLE_ADS_LOGIN_CUSTOMER_ID=...    # MCC ID (no dashes)
+
+# YouTube (for uploading PMax video assets — youtube_upload.py)
+# Reuses GOOGLE_ADS_CLIENT_ID/SECRET by default, or set YOUTUBE_CLIENT_ID/SECRET separately.
+YOUTUBE_REFRESH_TOKEN=...           # run `python3 youtube_upload.py setup` to generate
 
 # TikTok
 TIKTOK_ACCESS_TOKEN=...             # long-lived from TikTok for Business
