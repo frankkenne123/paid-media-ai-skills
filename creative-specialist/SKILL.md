@@ -62,7 +62,7 @@ Best for: established brands with reviews/numbers, second-iteration ads after a 
 [What they got from it]
 [Soft CTA]
 ```
-**Example (jewelry/streetwear brand):**
+**Example:**
 > 2M+ customers. 4.8 stars. The same real gold the brand has been making for 20 years — now in the new Spring drop.
 
 ### Scarcity / Urgency
@@ -345,7 +345,7 @@ The hook frameworks (§1) and copy structure (§2) apply across platforms — on
 ### Google Ads — Responsive Search Ads (text-only, no image)
 
 ```bash
-python3 tools/build_google_search_campaign.py \
+python3 build_google_search_campaign.py \
   --customer XXXXXXXXXX \
   --client "Acme Co" \
   --campaign-name "Brand Search 2026" \
@@ -377,7 +377,7 @@ For Performance Max (asset-group format with images + video + headlines), build 
 ### TikTok — In-Feed Video Ads
 
 ```bash
-python3 tools/build_tiktok_campaign.py \
+python3 build_tiktok_campaign.py \
   --client "Acme Co" \
   --campaign-name "Spring ACQ" \
   --daily-budget 50 \
@@ -389,7 +389,7 @@ python3 tools/build_tiktok_campaign.py \
 ```
 
 **Key differences from Meta:**
-- **Video-first.** TikTok deprioritizes static images; ship a video. If you don't have video generation wired up, ask the user for a `.mp4` file. Image-only fallback is possible but expect poor delivery.
+- **Video-first.** TikTok deprioritizes static images; ship a video. **You have video generation** — use the `video_generate` tool (same fal provider as `generate_image`). Default model is `fal-ai/minimax/video-01-live`; for image-to-video animation use `fal-ai/wan/v2.2-a14b/image-to-video`; for cinematic quality use `fal-ai/kling-video/v2.1/master/text-to-video`. Generate at **9:16 aspect ratio**, save to `/tmp/<client>_video_<stamp>.mp4`, then pass to `--video`. Full reference: `skills/image-generation/SKILL.md` Video Generation section.
 - **Ad text is one field** (≤100 chars for full visibility). Treat it like Meta's primary text — apply a hook framework from §1.
 - **Identity is required.** Every TikTok ad runs from an "identity" — either a real TikTok account (`AUTHORIZED_BC_ACCOUNT`) or a custom name + avatar (`CUSTOMIZED_USER`). Set `TIKTOK_IDENTITY_ID` in `.env`.
 - **Pixel is required** for `CONVERSIONS` objective. Set `TIKTOK_PIXEL_ID` in `.env`.
@@ -418,15 +418,36 @@ Don't write three different campaigns. Write ONE message and translate the forma
 
 ## 10. Quick reference: tools you actually use
 
+### Generation
 | What you need | How |
 |---|---|
-| Generate an image | `generate_image(prompt="...")` (Nano Banana Pro via fal.ai) |
-| Save image to disk | Pipe URL to `requests.get(...).content`, write to `/tmp/<client>_<stamp>.png` |
-| Build Meta campaign | `python3 build_meta_campaign_full.py ...` (workspace root) |
-| Build Google Search campaign | `python3 build_google_search_campaign.py ...` |
-| Build TikTok video campaign | `python3 build_tiktok_campaign.py ...` |
-| Audit existing creatives | `python3 analyze_account_creatives.py --account act_X --output ...` |
-| Discover client context | `python3 discover_client_brief.py --account act_X --slug <slug>` |
+| Generate an image | `generate_image(prompt="...")` — Nano Banana Pro via fal.ai |
+| Generate a video | `video_generate(prompt="...", model="fal/fal-ai/wan/v2.2-a14b/image-to-video", source_image="<url>")` — see `image-generation/SKILL.md` Video Generation section for all 6 models, modes, and prompt structure |
+| Save image/video to disk | `requests.get(url).content` → `/tmp/<client>_<stamp>.{png,mp4}` |
+
+### Build a new campaign
+| What you need | How |
+|---|---|
+| Meta (image, single ad) | `python3 build_meta_campaign_full.py ...` |
+| Meta — add another creative variant to existing ad set | Same script + `--reuse-adset <ADSET_ID>` (skips campaign/adset creation, posts only the new ad). Use to test 3 images on one hook. |
+| Google Search (RSA, text-only) | `python3 build_google_search_campaign.py ...` |
+| Google Performance Max (5+ images, 1+ logo, 5+ headlines × descriptions, ideally videos) | `python3 build_google_pmax_campaign.py ...` — videos must be on YouTube first (Google Ads doesn't accept raw uploads) |
+| TikTok in-feed video | `python3 build_tiktok_campaign.py ...` |
+
+### Activate after the user approves
+| What you need | How |
+|---|---|
+| Meta — activate full campaign + ad sets + ads | `python3 activate_paused_resources.py --platform meta --campaign-id <ID>` |
+| Meta — activate just one new ad (variant) | `python3 activate_paused_resources.py --platform meta --ad-id <AD_ID>` |
+| Google — activate campaign + children | `python3 activate_paused_resources.py --platform google --customer <X> --campaign-id <ID>` |
+
+The activation helper always shows you what it's about to enable and asks for `yes` confirmation before mutating. Pass `--yes` to skip the prompt only when you've already shown the user a preview.
+
+### Diagnose / report
+| What you need | How |
+|---|---|
+| Audit existing Meta creatives | `python3 analyze_account_creatives.py --account act_X --output ...` |
+| Discover client context (Pages, Pixels, IG, currently-running ads, website signals) | `python3 discover_client_brief.py --account act_X --slug <slug>` |
 | Pull live Meta performance | `python3 meta_ads_data.py campaigns --account act_X --preset last_7d` |
 | Pull live Google performance | `python3 google_ads_data.py campaigns --customer X --range LAST_7_DAYS` |
-| Lookup what's connected | `client-briefs/<slug>.md` — read first, ask the user only for what's missing |
+| Lookup what's connected for a client | `client-briefs/<slug>.md` — read first, ask the user only for what's missing |

@@ -2,13 +2,13 @@
 """
 Build a full Meta campaign end-to-end: campaign → ad set → upload image → adcreative → ad.
 
-All in PAUSED state. The user approves before activating.
+All in PAUSED state. the user approves before activating.
 
 Usage:
   python3 build_meta_campaign_full.py \
     --account act_XXXXXXXX \
     --client "Acme Co" \
-    --campaign-name "Spring Acquisition" \
+    --campaign-name "AI - Spring Acquisition" \
     --daily-budget 50 \
     --landing-url https://acme.example.com/collections/new \
     --headline "Hand-Crafted Statement Pieces" \
@@ -16,16 +16,15 @@ Usage:
     --description "Free shipping over $50" \
     --cta SHOP_NOW \
     --image /path/to/creative.png \
-    --page-id <FACEBOOK_PAGE_ID> \
-    --pixel-id <META_PIXEL_ID> \
-    --countries US
+    --page-id <PIXEL_ID>_PAGE \
+    --pixel-id <PIXEL_ID> \
+    --age-min 25 --age-max 55 --countries US
 
-Default targeting is Advantage+ broad. Pass --manual-targeting --age-min X --age-max Y
-to override (only when explicitly told to).
+Use --advantage-plus to skip manual targeting and let Meta optimize.
 Use --dry-run to print the API calls that would fire without making them.
 
-The image MUST already be saved locally — generate it first (e.g. via your
-image-generation tool of choice) and write it to /tmp/, then pass the path here.
+The image MUST already be saved locally — generate it first with generate_image()
+and write it to /tmp/, then pass the path here.
 """
 
 import argparse, datetime as dt, json, os, sys
@@ -89,7 +88,8 @@ def main():
     p.add_argument("--account", required=True, help="Ad account ID with act_ prefix")
     p.add_argument("--client", required=True, help="Client name (used in campaign labeling)")
     p.add_argument("--campaign-name", required=True)
-    p.add_argument("--daily-budget", type=float, required=True, help="In dollars (e.g. 50 = $50/day)")
+    p.add_argument("--daily-budget", type=float, default=None,
+                   help="In dollars (e.g. 50 = $50/day). Required unless --reuse-adset is set.")
     p.add_argument("--landing-url", required=True)
     p.add_argument("--headline", required=True, help="Short — max 40 chars renders cleanly")
     p.add_argument("--primary-text", required=True, help="Body — keep under 125 chars for full visibility")
@@ -109,57 +109,74 @@ def main():
     p.add_argument("--countries", default="US", help="Comma-separated country codes")
     p.add_argument("--instagram-account-id", default=None,
                    help="Optional — if provided, ad runs on IG too")
+    p.add_argument("--reuse-adset", default=None, metavar="ADSET_ID",
+                   help="Skip campaign + ad-set creation; add a new ad to this existing ad set. "
+                        "Use this to test 3 creative variants on the same hook in one ad set: "
+                        "run the script 3 times with --reuse-adset <ID>, varying --image (and "
+                        "optionally --headline / --primary-text). All ads land PAUSED.")
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
     if not TOKEN and not args.dry_run:
         fail("META_ACCESS_TOKEN missing in .env")
 
+    if not args.reuse_adset and args.daily_budget is None:
+        fail("--daily-budget is required when not using --reuse-adset")
+
     stamp = dt.datetime.now().strftime("%m%d_%H%M")
     full_name = f"{args.client} — {args.campaign_name} — {stamp}"
     print(f"🏗️  Building: {full_name}")
     print(f"    Account: {args.account}")
-    print(f"    Budget:  ${args.daily_budget}/day")
+    if args.reuse_adset:
+        print(f"    Mode:    VARIANT — adding new ad to existing ad set {args.reuse_adset}")
+    else:
+        print(f"    Budget:  ${args.daily_budget}/day")
     print(f"    Status:  PAUSED (you must activate manually after the user approves)\n")
 
-    # 1. Campaign
-    camp = post(f"/{args.account}/campaigns", {
-        "name": full_name,
-        "objective": args.objective,
-        "status": "PAUSED",
-        "special_ad_categories": "[]",
-        "buying_type": "AUCTION",
-        "access_token": TOKEN,
-    }, args.dry_run)
-    campaign_id = camp["id"]
-    print(f"✅ Campaign:  {campaign_id}")
-
-    # 2. Ad set — default is Advantage+ broad per the user's standing rule
-    targeting = {
-        "geo_locations": {"countries": [c.strip() for c in args.countries.split(",")]},
-    }
-    if args.manual_targeting:
-        targeting["age_min"] = args.age_min
-        targeting["age_max"] = args.age_max
+    if args.reuse_adset:
+        # Variant mode — skip campaign + adset creation, reuse the existing ad set
+        adset_id = args.reuse_adset
+        campaign_id = None
+        print(f"➡️  Reusing Ad Set: {adset_id} (skipping campaign + adset creation)")
     else:
-        targeting["targeting_automation"] = {"advantage_audience": 1}
+        # 1. Campaign
+        camp = post(f"/{args.account}/campaigns", {
+            "name": full_name,
+            "objective": args.objective,
+            "status": "PAUSED",
+            "special_ad_categories": "[]",
+            "buying_type": "AUCTION",
+            "access_token": TOKEN,
+        }, args.dry_run)
+        campaign_id = camp["id"]
+        print(f"✅ Campaign:  {campaign_id}")
 
-    adset_params = {
-        "name": f"{args.client} — Ad Set — {stamp}",
-        "campaign_id": campaign_id,
-        "daily_budget": int(args.daily_budget * 100),
-        "billing_event": "IMPRESSIONS",
-        "optimization_goal": "OFFSITE_CONVERSIONS",
-        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-        "targeting": json.dumps(targeting),
-        "status": "PAUSED",
-        "promoted_object": json.dumps({"pixel_id": args.pixel_id, "custom_event_type": "PURCHASE"}),
-        "start_time": (dt.datetime.utcnow() + dt.timedelta(hours=1)).isoformat() + "Z",
-        "access_token": TOKEN,
-    }
-    adset = post(f"/{args.account}/adsets", adset_params, args.dry_run)
-    adset_id = adset["id"]
-    print(f"✅ Ad Set:    {adset_id}")
+        # 2. Ad set — default is Advantage+ broad per the user's standing rule
+        targeting = {
+            "geo_locations": {"countries": [c.strip() for c in args.countries.split(",")]},
+        }
+        if args.manual_targeting:
+            targeting["age_min"] = args.age_min
+            targeting["age_max"] = args.age_max
+        else:
+            targeting["targeting_automation"] = {"advantage_audience": 1}
+
+        adset_params = {
+            "name": f"{args.client} — Ad Set — {stamp}",
+            "campaign_id": campaign_id,
+            "daily_budget": int(args.daily_budget * 100),
+            "billing_event": "IMPRESSIONS",
+            "optimization_goal": "OFFSITE_CONVERSIONS",
+            "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+            "targeting": json.dumps(targeting),
+            "status": "PAUSED",
+            "promoted_object": json.dumps({"pixel_id": args.pixel_id, "custom_event_type": "PURCHASE"}),
+            "start_time": (dt.datetime.utcnow() + dt.timedelta(hours=1)).isoformat() + "Z",
+            "access_token": TOKEN,
+        }
+        adset = post(f"/{args.account}/adsets", adset_params, args.dry_run)
+        adset_id = adset["id"]
+        print(f"✅ Ad Set:    {adset_id}")
 
     # 3. Image upload
     image_hash = upload_image(args.account, args.image, args.dry_run)
@@ -200,12 +217,17 @@ def main():
     print(f"✅ Ad:        {ad_id}\n")
 
     print("🎉 Built. All resources are PAUSED.")
-    print(f"    Campaign:  {campaign_id}")
+    if campaign_id:
+        print(f"    Campaign:  {campaign_id}")
     print(f"    Ad Set:    {adset_id}")
     print(f"    Creative:  {creative_id}")
     print(f"    Ad:        {ad_id}")
-    print("\nNext: Show the user a preview. After approval, activate via:")
-    print(f"  curl -X POST '{API}/{campaign_id}' -d 'access_token=$META_ACCESS_TOKEN' -d 'status=ACTIVE'")
+    if args.reuse_adset:
+        print("\nNext: Show the user in Discord. After approval, activate the ad alone via:")
+        print(f"  curl -X POST '{API}/{ad_id}' -d 'access_token=$META_ACCESS_TOKEN' -d 'status=ACTIVE'")
+    else:
+        print("\nNext: Show the user in Discord. After approval, activate via:")
+        print(f"  curl -X POST '{API}/{campaign_id}' -d 'access_token=$META_ACCESS_TOKEN' -d 'status=ACTIVE'")
 
 
 if __name__ == "__main__":

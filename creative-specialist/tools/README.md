@@ -6,9 +6,11 @@ Runnable scripts that pair with `../SKILL.md`. Together they let an AI agent bui
 
 | File | Purpose |
 |---|---|
-| `build_meta_campaign_full.py` | **Meta:** one-command builder — campaign → ad set → upload image → adcreative → ad. All PAUSED until approved. |
-| `build_google_search_campaign.py` | **Google Ads:** Responsive Search Ad builder — budget → campaign → ad group → RSA (15 headlines × 4 descriptions) → keywords with match-type syntax. |
+| `build_meta_campaign_full.py` | **Meta:** one-command builder — campaign → ad set → upload image → adcreative → ad. Supports `--reuse-adset <ID>` to add additional creative variants to an existing ad set (one-variable testing). All PAUSED until approved. |
+| `build_google_search_campaign.py` | **Google Ads — Search:** Responsive Search Ad builder — budget → campaign → ad group → RSA (3-15 headlines × 2-4 descriptions) → keywords with match-type syntax. |
+| `build_google_pmax_campaign.py` | **Google Ads — Performance Max:** asset-group builder — uploads 5+ images, 1+ logos, headlines/descriptions, links YouTube videos. PMax is asset-driven, no manual targeting. |
 | `build_tiktok_campaign.py` | **TikTok:** in-feed video ad builder — upload video → campaign → ad group → ad. Uses `PLACEMENT_TYPE_AUTOMATIC` (TikTok's Advantage+ equivalent). |
+| `activate_paused_resources.py` | **All platforms:** activate PAUSED resources after the user approves. Cascades campaign → ad sets/groups → ads. Confirmation prompt by default; `--yes` to skip; `--dry-run` to preview. Meta supports `--ad-id` for activating a single variant. |
 | `discover_client_brief.py` | Pulls everything Meta knows about a client (Pages, Pixels, IG, currently-running ad copy) + scrapes their homepage for brand voice signals. Outputs `client-briefs/<slug>.md`. |
 | `analyze_account_creatives.py` | Pulls every active Meta ad with copy + creative URL + 30-day performance into a markdown worksheet for framework analysis. |
 | `META_CAMPAIGN_PLAYBOOK.md` | The 5-step recipe an agent follows to build a Meta campaign. |
