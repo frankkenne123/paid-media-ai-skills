@@ -1,0 +1,14 @@
+# Never commit your real account list — only the example
+accounts.json
+
+# Never commit per-client briefs — they contain pixel/page/account IDs
+client-briefs/*.md
+!client-briefs/_TEMPLATE.md
+
+# Never commit audit outputs — they contain spend/revenue/account IDs
+audits/
+
+# Standard Python
+__pycache__/
+*.pyc
+.env
