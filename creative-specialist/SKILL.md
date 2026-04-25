@@ -293,8 +293,8 @@ When the user says "build a campaign for [client]":
 - **Killing ads after 24 hours.** Below sample-size threshold = noise.
 - **Restarting the same ad on a new image.** Meta resets the learning phase. Better: new ad in same ad set.
 - **Generating images with text in them.** Headline goes in the copy field. Only logos/product labels in the image.
-- **Activating without the user's approval.** Hard rule. Build PAUSED, show the user, wait.
-- **Forgetting to save the brief.** When the user gives you offer/ROAS/voice info, write it to `client-briefs/<slug>.md` immediately. Don't make them repeat themselves next session.
+- **Activating without the user's approval.** Hard rule. Build PAUSED, show in Discord, wait.
+- **Forgetting to save the brief.** When the user gives you offer/ROAS/voice info, write it to `client-briefs/<slug>.md` immediately. Don't make him repeat himself next session.
 
 ---
 
@@ -338,14 +338,95 @@ Write the completed audit to `audits/<client>-<YYYY-MM-DD>.md` in this workspace
 
 ---
 
-## 9. Quick reference: tools you actually use
+## 9. Other platforms (Google Search, TikTok)
+
+The hook frameworks (§1) and copy structure (§2) apply across platforms — only the API and asset format change.
+
+### Google Ads — Responsive Search Ads (text-only, no image)
+
+```bash
+python3 tools/build_google_search_campaign.py \
+  --customer XXXXXXXXXX \
+  --client "Acme Co" \
+  --campaign-name "Brand Search 2026" \
+  --daily-budget 50 \
+  --final-url "https://acme.example.com/collections/all" \
+  --headlines "Real 14k Gold Chains" "Lifetime Warranty" "Free Shipping Over \$50" \
+              "Hand-Crafted Jewelry" "20+ Years of Quality" "Shop the New Drop" \
+              "Trusted by 2M+ Customers" "Premium Cuban Links" \
+  --descriptions "Hand-crafted 14k gold chains backed by a lifetime warranty. Free shipping over \$50." \
+                 "Trusted by over 2 million customers — premium streetwear jewelry since 2003." \
+                 "Real gold, not plated. Every piece guaranteed for life." \
+  --keywords "14k gold chain" "cuban link chain" "[gold cuban link]" '"hip hop jewelry"' \
+  --countries US
+```
+
+**Key differences from Meta:**
+- **No image.** Text only. Headlines and descriptions ARE the creative.
+- **Headlines:** 3-15, each ≤30 chars. Treat each as a hook variant — Google rotates them automatically.
+- **Descriptions:** 2-4, each ≤90 chars. Same hook frameworks (§1) but compress hard.
+- **Keywords matter as much as copy.** Match types:
+  - bare text → `BROAD` (default Google match-all)
+  - `"phrase"` → `PHRASE` (must contain in order)
+  - `[exact]` → `EXACT` (must match exactly)
+- **Default bidding is MAXIMIZE_CONVERSIONS.** Override with `--bidding-strategy TARGET_CPA --target-cpa-dollars 25` for tighter control on accounts with conversion history.
+- **Status is PAUSED on create.** Same approval rule as Meta.
+
+For Performance Max (asset-group format with images + video + headlines), build a separate variant — not yet wired into a single command.
+
+### TikTok — In-Feed Video Ads
+
+```bash
+python3 tools/build_tiktok_campaign.py \
+  --client "Acme Co" \
+  --campaign-name "Spring ACQ" \
+  --daily-budget 50 \
+  --landing-url "https://acme.example.com/collections/new" \
+  --ad-text "Real 14k gold chains, lifetime warranty. Shop the new drop →" \
+  --cta SHOP_NOW \
+  --video /tmp/acme_video.mp4 \
+  --countries US
+```
+
+**Key differences from Meta:**
+- **Video-first.** TikTok deprioritizes static images; ship a video. If you don't have video generation wired up, ask the user for a `.mp4` file. Image-only fallback is possible but expect poor delivery.
+- **Ad text is one field** (≤100 chars for full visibility). Treat it like Meta's primary text — apply a hook framework from §1.
+- **Identity is required.** Every TikTok ad runs from an "identity" — either a real TikTok account (`AUTHORIZED_BC_ACCOUNT`) or a custom name + avatar (`CUSTOMIZED_USER`). Set `TIKTOK_IDENTITY_ID` in `.env`.
+- **Pixel is required** for `CONVERSIONS` objective. Set `TIKTOK_PIXEL_ID` in `.env`.
+- **`PLACEMENT_TYPE_AUTOMATIC` is the Advantage+ equivalent.** Default in our script.
+- **CTAs differ from Meta:** `SHOP_NOW`, `LEARN_MORE`, `SIGN_UP`, `DOWNLOAD`, `APPLY_NOW`, `GET_QUOTE`, `ORDER_NOW`, `SUBSCRIBE`, `VIEW_NOW`, `BOOK_NOW`, `INSTALL_NOW`, `WATCH_NOW`.
+
+**TikTok needs credentials the user may not have set up yet:**
+- `TIKTOK_ACCESS_TOKEN` — long-lived token from TikTok for Business
+- `TIKTOK_ADVERTISER_ID` — advertiser account ID
+- `TIKTOK_IDENTITY_ID` — identity to run ads from
+- `TIKTOK_PIXEL_ID` — for CONVERSIONS optimization
+
+If they're missing, the script errors clearly listing what's needed. Tell the user.
+
+### Cross-platform hook reuse
+Build once, port across:
+1. Pick a hook framework (PAS, BAB, etc.) from §1
+2. Write the long-form version → use as Meta primary text or TikTok ad text
+3. Distill to a 30-char headline → Google RSA headline
+4. Distill to a 90-char body → Google RSA description
+5. Match the visual: Meta gets a 1080×1080 image; TikTok gets a 9:16 video; Google is text-only
+
+Don't write three different campaigns. Write ONE message and translate the format.
+
+---
+
+## 10. Quick reference: tools you actually use
 
 | What you need | How |
 |---|---|
 | Generate an image | `generate_image(prompt="...")` (Nano Banana Pro via fal.ai) |
 | Save image to disk | Pipe URL to `requests.get(...).content`, write to `/tmp/<client>_<stamp>.png` |
-| Build full campaign | `python3 build_meta_campaign_full.py ...` (workspace root) |
+| Build Meta campaign | `python3 build_meta_campaign_full.py ...` (workspace root) |
+| Build Google Search campaign | `python3 build_google_search_campaign.py ...` |
+| Build TikTok video campaign | `python3 build_tiktok_campaign.py ...` |
 | Audit existing creatives | `python3 analyze_account_creatives.py --account act_X --output ...` |
 | Discover client context | `python3 discover_client_brief.py --account act_X --slug <slug>` |
-| Pull live performance | `python3 meta_ads_data.py campaigns --account act_X --preset last_7d` |
+| Pull live Meta performance | `python3 meta_ads_data.py campaigns --account act_X --preset last_7d` |
+| Pull live Google performance | `python3 google_ads_data.py campaigns --customer X --range LAST_7_DAYS` |
 | Lookup what's connected | `client-briefs/<slug>.md` — read first, ask the user only for what's missing |
