@@ -14,6 +14,7 @@ Drop any skill into your Claude Code project or OpenClaw agent and it works.
 | Skill | What It Does |
 |---|---|
 | [meta-ads-api](./meta-ads-api/) | Meta Marketing API — campaigns, ad sets, ads, audiences, insights |
+| [meta-ads-campaign-builder](./meta-ads-campaign-builder/) | End-to-end build playbook — naming, CBO/ABO, Advantage+ age, dev-mode → live-mode migration, dark-post rebuild |
 | [google-ads-api](./google-ads-api/) | Google Ads API — Search, Shopping, PMax, YouTube, Display |
 | [shopify-integration](./shopify-integration/) | Shopify Admin API — revenue, orders, customers, LTV, attribution |
 | [ga4-integration](./ga4-integration/) | Google Analytics 4 — traffic sources, landing pages, events, funnels |
